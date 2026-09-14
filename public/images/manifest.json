@@ -1,0 +1,10 @@
+{
+  "name": "Five More Minutes - complete image pack",
+  "imageCount": 51,
+  "format": "Local JPEG and standalone SVG source files",
+  "room": ["nap-room.jpg"],
+  "rewards": ["rewards/sage-quilt.svg", "rewards/moon-pillow.svg", "rewards/maple-plant.svg", "rewards/paper-lantern.svg", "rewards/fox-plush.svg", "rewards/wind-chime.svg"],
+  "trophies": ["trophies/first-nap.svg", "trophies/quiet-nap.svg", "trophies/dream-weaver.svg", "trophies/moon-collector.svg", "trophies/perfect-nap.svg", "trophies/dream-guardian.svg"],
+  "game": ["game/cloud.svg", "game/moon.svg", "game/alarm-clock.svg", "game/catcher-pillow.svg", "game/firefly.svg", "game/maple-leaf.svg", "game/moon-mark.svg"],
+  "ui": ["ui/arrow-left.svg", "ui/arrow-right.svg", "ui/chevron-left.svg", "ui/chevron-right.svg", "ui/check.svg", "ui/close.svg", "ui/play.svg", "ui/pause.svg", "ui/restart.svg", "ui/settings.svg", "ui/sound-on.svg", "ui/sound-off.svg", "ui/help.svg", "ui/journal.svg", "ui/heart.svg", "ui/clock.svg", "ui/globe.svg", "ui/home.svg", "ui/lock.svg", "ui/fullscreen.svg", "ui/pointer.svg", "ui/gift.svg", "ui/moon.svg", "ui/sun.svg", "ui/sparkles.svg", "ui/trophy.svg", "ui/award.svg", "ui/wind.svg", "ui/download.svg", "ui/paper-grain.svg", "ui/favicon.svg"]
+}
