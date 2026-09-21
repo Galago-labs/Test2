@@ -1,6 +1,6 @@
 import type { GameSnapshot, Mood } from './engine';
 import { readStored, canWrite, type StoragePort } from '../core/storage.ts';
-import { SCENARIO_IDS, isScenario, type Scenario } from './scenarios.ts';
+import { SCENARIO_IDS, SCENARIO_DREAM_GOAL, isScenario, type Scenario } from './scenarios.ts';
 import { DECORATION_IDS, DECORATIONS, decorationProgress, isDecoration, type DecorationId, type EquippedDecor } from './decorations.ts';
 
 export const ACHIEVEMENTS = ['firstNap', 'quietNap', 'dreamWeaver', 'moonCollector', 'perfectNap', 'dreamGuardian'] as const;
@@ -117,10 +117,12 @@ export function earnedAchievements(game: GameSnapshot): AchievementId[] {
 
 export function applyRound(previous: NapProgress, game: GameSnapshot, date = Date.now()) {
   if (!Number.isSafeInteger(game.roundId) || game.roundId <= 0 || previous.recordedIds.includes(game.roundId) ||
-      (game.status !== 'won' && game.status !== 'lost') || !Object.prototype.hasOwnProperty.call(previous.bestScores, game.mood) || !isScenario(game.scenario)) return { progress: previous, unlocked: [] as AchievementId[], decorations: [] as DecorationId[] };
+      (game.status !== 'won' && game.status !== 'lost') || !Object.prototype.hasOwnProperty.call(previous.bestScores, game.mood) || !isScenario(game.scenario)) return { progress: previous, unlocked: [] as AchievementId[], decorations: [] as DecorationId[], completedScenario: null as Scenario | null };
   const fresh = earnedAchievements(game).filter((id) => !previous.unlocked[id]);
   const unlocked = { ...previous.unlocked };
   for (const id of fresh) unlocked[id] = date;
+  const previousScenarioWins = previous.scenarioWins[game.scenario];
+  const nextScenarioWins = nonNegative(previousScenarioWins + Number(game.status === 'won'));
   const progress: NapProgress = {
     ...previous, unlocked,
     decorations: { ...previous.decorations }, equipped: { ...previous.equipped },
@@ -128,10 +130,13 @@ export function applyRound(previous: NapProgress, game: GameSnapshot, date = Dat
     rounds: nonNegative(previous.rounds + 1), wins: nonNegative(previous.wins + Number(game.status === 'won')),
     dreams: nonNegative(previous.dreams + nonNegative(game.caught)), recordedIds: [...previous.recordedIds, game.roundId].slice(-64),
     maxCombo: Math.max(previous.maxCombo, nonNegative(game.maxCombo)), fireflies: nonNegative(previous.fireflies + nonNegative(game.fireflies)),
-    scenarioWins: { ...previous.scenarioWins, [game.scenario]: nonNegative(previous.scenarioWins[game.scenario] + Number(game.status === 'won')) },
+    scenarioWins: { ...previous.scenarioWins, [game.scenario]: nextScenarioWins },
     scenarioScores: { ...previous.scenarioScores, [game.scenario]: { ...previous.scenarioScores[game.scenario], [game.mood]: Math.max(previous.scenarioScores[game.scenario][game.mood], nonNegative(game.score)) } },
   };
-  return { progress, unlocked: fresh, decorations: unlockDecorations(progress, date) };
+  // Crossing the goal for the first time, this round specifically — not just
+  // "already past it" on a later replay of the same scenario.
+  const completedScenario = previousScenarioWins < SCENARIO_DREAM_GOAL && nextScenarioWins >= SCENARIO_DREAM_GOAL ? game.scenario : null;
+  return { progress, unlocked: fresh, decorations: unlockDecorations(progress, date), completedScenario };
 }
 
 function validShape(value: unknown) { const source = object(value); return typeof source.bestScores === 'object' && source.bestScores !== null && !Array.isArray(source.bestScores); }

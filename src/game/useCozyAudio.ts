@@ -20,8 +20,10 @@ const writeFlag = (key: string, value: boolean) => writePreference(key, value ? 
 
 // Ambient cycle: a phase of music, gently faded in and out, alternates with a
 // phase of nature sounds (birds for day scenarios, frogs for the night one).
-// Timings are in seconds.
-const MUSIC_HOLD = 46;
+// Timings are in seconds. The music clip is 160s long; MUSIC_HOLD is sized so
+// a phase plays almost the whole thing (minus the two fades) rather than
+// cutting it short and cycling to nature sounds too often.
+const MUSIC_HOLD = 152;
 const AMBIENCE_HOLD = 32;
 const FADE = 4;
 const MUSIC_LEVEL = 0.5;
@@ -53,10 +55,23 @@ export function useCozyAudio(suspended = false, scenario: Scenario = 'afternoon'
   const disposed = useRef(false);
   const cycleToken = useRef(0);
   const birdTurn = useRef(0);
+  const activeSourceRef = useRef<AudioBufferSourceNode | null>(null);
   suspendedRef.current = suspended;
   musicEnabledRef.current = musicEnabled;
   ambienceEnabledRef.current = ambienceEnabled;
   scenarioRef.current = scenario;
+
+  // Unconditionally silences and detaches whatever ambient source is
+  // currently playing, right now, regardless of whether the AudioContext is
+  // running or suspended. Used when turning sound off deliberately (as
+  // opposed to the tab merely losing focus) — see the comment in toggle()
+  // for why this extra step matters and isn't just belt-and-suspenders.
+  const stopActiveSource = useCallback(() => {
+    const source = activeSourceRef.current;
+    activeSourceRef.current = null;
+    if (!source) return;
+    try { source.onended = null; source.stop(); source.disconnect(); } catch { /* already stopped/disposed */ }
+  }, []);
 
   const disable = useCallback((error: unknown) => {
     warnOnce('Audio unavailable; gameplay remains enabled', error);
@@ -147,9 +162,26 @@ export function useCozyAudio(suspended = false, scenario: Scenario = 'afternoon'
         gainNode.gain.linearRampToValueAtTime(0, now + totalDuration);
         source.start(now, offset);
         source.stop(now + totalDuration + 0.05);
-        source.onended = () => { try { source.disconnect(); } catch { /* already disposed */ } };
-      } catch (error) { warnOnce('Ambient phase playback failed', error); }
-      setTimeout(resolve, totalDuration * 1000);
+        activeSourceRef.current = source;
+        // Deliberately NOT a wall-clock setTimeout: while the tab/app is in
+        // the background the AudioContext is suspended (see syncVolume), and
+        // its own clock (context.currentTime) correctly freezes right along
+        // with it — a setTimeout does not know or care about that, so it
+        // would keep firing on real time and silently advance to the next
+        // phase (and the next, and the next...) while nothing is audible,
+        // scheduling several overlapping sources that all become audible at
+        // once the moment focus returns. onended is driven by the *context's*
+        // clock, so it naturally pauses and resumes exactly in step with
+        // suspend/resume — no separate bookkeeping needed to fix this.
+        source.onended = () => {
+          if (activeSourceRef.current === source) activeSourceRef.current = null;
+          try { source.disconnect(); } catch { /* already disposed */ }
+          resolve();
+        };
+      } catch (error) {
+        warnOnce('Ambient phase playback failed', error);
+        resolve();
+      }
     });
   }, [ambienceBufferForScenario]);
 
@@ -200,9 +232,13 @@ export function useCozyAudio(suspended = false, scenario: Scenario = 'afternoon'
       cycleToken.current += 1;
       void runCycle(cycleToken.current);
     } else {
+      // Not just muting: a phase that was mid-flight when this happens would
+      // otherwise sit scheduled-but-silenced, and could resurface and overlap
+      // with a freshly started cycle the next time sound is turned back on.
+      stopActiveSource();
       cycleToken.current += 1;
     }
-  }, [getEngine, play, syncVolume, runCycle]);
+  }, [getEngine, play, syncVolume, runCycle, stopActiveSource]);
 
   const toggleMusic = useCallback(() => {
     const next = !musicEnabledRef.current;

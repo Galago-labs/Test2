@@ -3,6 +3,7 @@ import { withDeadline } from '../core/async.ts';
 import { warnOnce } from '../core/faults.ts';
 import { PlatformGate, subscribePlatform } from './bridge.ts';
 import { connectPlatform, reportGameReady, standaloneConnection } from './yandex';
+import { isCapacitorNative, showNativeInterstitial } from './capacitorBridge';
 import type { PlatformConnection, YandexSDK } from './types';
 
 export function usePlatform(onInterrupt: () => void) {
@@ -23,6 +24,7 @@ export function usePlatform(onInterrupt: () => void) {
   const setGameplay = useCallback((active: boolean) => gate.setGameplay(active), [gate]);
   const isSuspended = useCallback(() => gate.blocked, [gate]);
   const showInterstitial = useCallback((onOpen?: () => void, onClose?: (wasShown: boolean) => void) => {
+    if (isCapacitorNative()) { showNativeInterstitial(onOpen, onClose); return; }
     const adv = sdkRef.current?.adv;
     if (!adv) { onClose?.(false); return; }
     try {

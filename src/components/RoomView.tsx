@@ -1,4 +1,5 @@
-import { Check, LockKeyhole } from './Icons';
+import { useState } from 'react';
+import { Check, LockKeyhole, X } from './Icons';
 import { DECORATION_IDS, DECORATIONS, decorationProgress, nextDecoration, type DecorationId } from '../game/decorations';
 import type { NapProgress } from '../game/progress';
 import type { Translator } from '../i18n';
@@ -13,6 +14,7 @@ export function nextGiftText(progress: NapProgress, t: Translator) {
 }
 
 export function RoomView({ progress, t, onEquip, onClose }: { progress: NapProgress; t: Translator; onEquip: (id: DecorationId) => void; onClose: () => void }) {
+  const [zoomedId, setZoomedId] = useState<DecorationId | null>(null);
   const favorites = DECORATION_IDS.filter((id) => progress.decorations[id] && progress.equipped[DECORATIONS[id].slot] === id);
   return <>
     <span className="eyebrow">{t('room.eyebrow')}</span>
@@ -21,7 +23,10 @@ export function RoomView({ progress, t, onEquip, onClose }: { progress: NapProgr
     <div className="room-preview"><img src={ORIGINAL_ROOM_IMAGE} alt={t('game.image')} draggable={false} /></div>
     {favorites.length > 0 && <div className="keepsake-display" role="group" aria-label={t('room.favorites')}>
       <span className="keepsake-heading">{t('room.favorites')}</span>
-      <div className="keepsake-shelf">{favorites.map((id) => <button key={id} className="keepsake-item" onClick={() => onEquip(id)} aria-label={`${t('room.remove')}: ${t(`decor.${id}.name`)}`} title={t(`decor.${id}.name`)}><DecorationArt id={id} /></button>)}</div>
+      <div className="keepsake-shelf">{favorites.map((id) => <span key={id} className={`keepsake-item ${zoomedId === id ? 'is-zoomed' : ''}`}>
+        <button className="keepsake-art" onClick={() => setZoomedId(zoomedId === id ? null : id)} aria-pressed={zoomedId === id} aria-label={t(`decor.${id}.name`)} title={t(`decor.${id}.name`)}><DecorationArt id={id} /></button>
+        <button className="keepsake-remove" onClick={() => { onEquip(id); setZoomedId(null); }} aria-label={`${t('room.remove')}: ${t(`decor.${id}.name`)}`}><X size={11} /></button>
+      </span>)}</div>
     </div>}
     <div className="room-collection-heading"><span>{t('room.collected', { count: Object.keys(progress.decorations).length })}</span></div>
     <ul className="decoration-list">

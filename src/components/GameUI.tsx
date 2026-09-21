@@ -9,10 +9,10 @@ import { MOODS, type Mood } from '../game/engine';
 import type { SaveStatus } from '../game/progress';
 import { focusSafely } from '../core/input';
 import { RoomView } from './RoomView';
-import { SCENARIO_IDS } from '../game/scenarios';
+import { SCENARIO_IDS, SCENARIO_DREAM_GOAL, type Scenario } from '../game/scenarios';
+import { DREAM_IMAGES } from '../assets/images';
 import type { DecorationId } from '../game/decorations';
 import { TrophyArt } from './TrophyArt';
-import { AssetDownloads } from './AssetDownloads';
 
 export type { ModalKind } from '../game/dialogState';
 import type { ModalKind } from '../game/dialogState';
@@ -52,11 +52,11 @@ interface DialogProps {
   onMood: (mood: Mood) => void;
   inNap: boolean;
   onEquip: (id: DecorationId) => void;
-  standaloneMode: boolean;
   onConfirmExit: () => void;
+  completedScenario: Scenario | null;
 }
 
-export function LittleDialog({ kind, onClose, returnFocus, locale, t, progress, storageAvailable, saveStatus, onPractice, onFinishTutorial, tutorialReturning, suspended, onTutorialActivity, onOpen, selectLocale, soundEnabled, soundAvailable, toggleSound, musicEnabled, ambienceEnabled, toggleMusic, toggleAmbience, fullscreen, changeFullscreen, platformUnavailable, onReconnect, mood, onMood, inNap, onEquip, standaloneMode, onConfirmExit }: DialogProps) {
+export function LittleDialog({ kind, onClose, returnFocus, locale, t, progress, storageAvailable, saveStatus, onPractice, onFinishTutorial, tutorialReturning, suspended, onTutorialActivity, onOpen, selectLocale, soundEnabled, soundAvailable, toggleSound, musicEnabled, ambienceEnabled, toggleMusic, toggleAmbience, fullscreen, changeFullscreen, platformUnavailable, onReconnect, mood, onMood, inNap, onEquip, onConfirmExit, completedScenario }: DialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const [fullscreenDenied, setFullscreenDenied] = useState(false);
   const [fullscreenBusy, setFullscreenBusy] = useState(false);
@@ -143,7 +143,6 @@ export function LittleDialog({ kind, onClose, returnFocus, locale, t, progress, 
           <SoftButton onClick={onClose}><Check size={17} />{t('settings.done')}</SoftButton>
           <p className="dialog-footnote">{t(storageMessage)}</p>
           {platformUnavailable && <><p className="platform-note">{t('settings.platformFallback')}</p><button className="text-button" onClick={onReconnect}>{t('settings.reconnect')}</button></>}
-          {standaloneMode && <AssetDownloads t={t} />}
         </>}
         {kind === 'guide' && <>
           <DreamCloud className="dialog-art" />
@@ -151,7 +150,7 @@ export function LittleDialog({ kind, onClose, returnFocus, locale, t, progress, 
           <h2 id="dialog-title">{t('guide.title')}</h2>
           <p className="dialog-intro">{t('guide.intro')}</p>
           <div className="guide-steps">
-            {(['move', 'catch', 'avoid', 'scenario'] as const).map((step, i) => <div className="guide-step" key={step}><span className="step-number">0{i + 1}</span><div><h3>{t(`guide.${step}Title`)}</h3><p>{t(`guide.${step}`)}</p></div></div>)}
+            {(['move', 'catch', 'avoid', 'mood', 'scenario'] as const).map((step, i) => <div className="guide-step" key={step}><span className="step-number">0{i + 1}</span><div><h3>{t(`guide.${step}Title`)}</h3><p>{t(`guide.${step}`)}</p></div></div>)}
           </div>
           <div className="guide-goal"><Heart size={17} /><span>{t('guide.goal')}</span></div>
           <SoftButton onClick={onClose}><Check size={17} />{t('guide.button')}</SoftButton>
@@ -173,6 +172,13 @@ export function LittleDialog({ kind, onClose, returnFocus, locale, t, progress, 
           <SoftButton onClick={onConfirmExit}><Check size={17} />{t('exit.confirm')}</SoftButton>
           <button className="text-button" onClick={onClose}>{t('exit.cancel')}</button>
         </>}
+        {kind === 'dreamReveal' && completedScenario && <>
+          <span className="eyebrow">{t('dream.eyebrow')}</span>
+          <h2 id="dialog-title">{t(`scenario.${completedScenario}.name`)}</h2>
+          <img className="dream-reveal-art" src={DREAM_IMAGES[completedScenario]} alt="" draggable={false} />
+          <p className="dialog-intro">{t(`scenario.${completedScenario}.memory`)}</p>
+          <SoftButton onClick={onClose}><Check size={17} />{t('dream.close')}</SoftButton>
+        </>}
         {kind === 'journal' && <>
           <BookOpen className="journal-art" strokeWidth={1.25} />
           <span className="eyebrow">{t('journal.eyebrow')}</span>
@@ -189,7 +195,21 @@ export function LittleDialog({ kind, onClose, returnFocus, locale, t, progress, 
               </li>;
             })}
           </ul>
-          <div className="dream-memories">{SCENARIO_IDS.map((scenario) => progress.scenarioWins[scenario] > 0 && <div className="dream-memory" key={scenario}><MapleLeaf /><div><h3>{t(`scenario.${scenario}.name`)}</h3><p>{t(`scenario.${scenario}.memory`)}</p></div></div>)}</div>
+          <div className="dream-progress-total">{t('journal.dreamsTotal', { current: SCENARIO_IDS.reduce((sum, s) => sum + Math.min(progress.scenarioWins[s], SCENARIO_DREAM_GOAL), 0), goal: SCENARIO_IDS.length * SCENARIO_DREAM_GOAL })}</div>
+          <div className="dream-memories">{SCENARIO_IDS.map((scenario) => {
+            const wins = progress.scenarioWins[scenario];
+            if (wins <= 0) return null;
+            const current = Math.min(wins, SCENARIO_DREAM_GOAL);
+            const complete = current >= SCENARIO_DREAM_GOAL;
+            return <div className={`dream-memory ${complete ? 'is-complete' : ''}`} key={scenario}>
+              {complete ? <img className="dream-memory-art" src={DREAM_IMAGES[scenario]} alt="" draggable={false} /> : <MapleLeaf />}
+              <div>
+                <h3>{t(`scenario.${scenario}.name`)}{complete && <Check size={13} className="dream-complete-mark" />}</h3>
+                <p>{t(`scenario.${scenario}.memory`)}</p>
+                {!complete && <div className="decor-progress-row"><div className="decor-progress" role="progressbar" aria-label={t(`scenario.${scenario}.name`)} aria-valuemin={0} aria-valuemax={SCENARIO_DREAM_GOAL} aria-valuenow={current}><span style={{ width: `${current / SCENARIO_DREAM_GOAL * 100}%` }} /></div><span>{t('room.progress', { current, goal: SCENARIO_DREAM_GOAL })}</span></div>}
+              </div>
+            </div>;
+          })}</div>
           <div className="journal-records"><h3>{t('journal.best')}<span className="record-pace">{t(`mood.${mood}`)}</span></h3><dl>{SCENARIO_IDS.map((scenario) => <div key={scenario}><dt>{t(`scenario.${scenario}.name`)}</dt><dd>{progress.scenarioScores[scenario][mood]}</dd></div>)}</dl></div>
           <button className="text-button journal-room-link" onClick={() => onOpen('room')}><House size={17} />{t('room.open')}<ArrowRight size={15} /></button>
           <SoftButton onClick={onClose}>{t('journal.close')}<ArrowRight size={17} /></SoftButton>

@@ -25,6 +25,7 @@ export function useGameAssets() {
   const roomUrl = ORIGINAL_ROOM_IMAGE;
   const momoContentUrl = GAME_IMAGES.momoContent;
   const momoAnxiousUrl = GAME_IMAGES.momoAnxious;
+  const momoAwakeUrl = GAME_IMAGES.momoAwake;
 
   useEffect(() => {
     const cancellation = new AbortController();
@@ -33,6 +34,7 @@ export function useGameAssets() {
       preload(roomUrl, signal),
       preload(momoContentUrl, signal),
       preload(momoAnxiousUrl, signal),
+      preload(momoAwakeUrl, signal),
     ]);
     const fonts = Promise.resolve().then(() => document.fonts ? Promise.all([
       document.fonts.load('400 16px "Manrope"', 'Hello Привет'),
@@ -53,8 +55,8 @@ export function useGameAssets() {
     }, (error: unknown) => { if (!signal.aborted && !isAbort(error)) setStatus('error'); });
     return () => { cancellation.abort(); };
   // Retry creates a fresh decoder; adding a query string would corrupt a data URL.
-  }, [roomUrl, momoContentUrl, momoAnxiousUrl, attempt]);
+  }, [roomUrl, momoContentUrl, momoAnxiousUrl, momoAwakeUrl, attempt]);
 
   const retry = useCallback(() => { setStatus('loading'); setAttempt((value) => value + 1); }, []);
-  return { status, roomUrl, momoContentUrl, momoAnxiousUrl, retry };
+  return { status, roomUrl, momoContentUrl, momoAnxiousUrl, momoAwakeUrl, retry };
 }

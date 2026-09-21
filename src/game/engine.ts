@@ -13,10 +13,13 @@ export const ROUND_SECONDS = 60;
 export const LOW_COMFORT_THRESHOLD = 30;
 export const HIGH_COMFORT_THRESHOLD = 65;
 
-export type Expression = 'content' | 'anxious' | null;
+export type Expression = 'content' | 'anxious' | 'awake' | null;
 export function faceExpression(status: GameStatus, comfort: number): Expression {
   if (status === 'lost') return 'anxious';
-  if (status === 'won') return comfort >= HIGH_COMFORT_THRESHOLD ? 'content' : null;
+  // A finished, successful nap always ends with her sitting up, rubbing her
+  // eyes — the "content" face is for while she's still asleep and doing well,
+  // not for the result screen itself.
+  if (status === 'won') return 'awake';
   if (status === 'playing' || status === 'paused' || status === 'countdown') {
     if (comfort < LOW_COMFORT_THRESHOLD) return 'anxious';
     if (comfort >= HIGH_COMFORT_THRESHOLD) return 'content';

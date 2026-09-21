@@ -86,10 +86,10 @@ export function DreamLayer({ game, t }: { game: GameSnapshot; t: Translator }) {
 interface OverlayProps {
   game: GameSnapshot; t: Translator; onStart: () => void; onResume: () => void; onReset: () => void;
   onJournal: () => void; onSettings: () => void; newBest: boolean; unlockedCount: number;
-  onRoom: () => void; decorationCount: number; progress: NapProgress;
+  onRoom: () => void; decorationCount: number; completedScenario: Scenario | null; onDreamReveal: () => void; progress: NapProgress;
 }
 
-export function GameOverlays({ game, t, onStart, onResume, onReset, onJournal, onSettings, newBest, unlockedCount, onRoom, decorationCount, progress }: OverlayProps) {
+export function GameOverlays({ game, t, onStart, onResume, onReset, onJournal, onSettings, newBest, unlockedCount, onRoom, decorationCount, completedScenario, onDreamReveal, progress }: OverlayProps) {
   const finished = game.status === 'won' || game.status === 'lost';
   return <AnimatePresence mode="wait">
     {game.status === 'countdown' && <motion.div className="countdown-overlay" key="countdown" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
@@ -115,7 +115,8 @@ export function GameOverlays({ game, t, onStart, onResume, onReset, onJournal, o
         <div className="result-stats"><div><strong>{game.score}</strong><span>{t('game.points')}</span></div><div><strong>{game.caught}</strong><span>{t('result.caught')}</span></div><div><strong>{Math.round(game.comfort)}<small>%</small></strong><span>{t('result.comfort')}</span></div></div>
         <div className="result-best">{newBest ? <Trophy size={15} /> : <Sparkles size={15} />}{t(newBest ? 'result.best' : 'result.combo', { count: game.maxCombo, bonus: game.bonusScore })}</div>
         <div className="overlay-actions"><SoftButton onClick={onStart}><RotateCcw size={18} />{t('result.again')}</SoftButton><button className="text-button" onClick={onReset}>{t('pause.room')}<ArrowRight size={15} /></button></div>
-        {decorationCount > 0 ? <button className="result-keepsakes has-new-keepsakes" onClick={onRoom}><Gift size={16} />{t('room.new', { count: decorationCount })}<ArrowRight size={14} /></button> : unlockedCount > 0 ? <button className="result-keepsakes has-new-keepsakes" onClick={onJournal}><Award size={16} />{t('result.unlocked', { count: unlockedCount })}<ArrowRight size={14} /></button> : <button className="result-keepsakes next-gift-link" onClick={onRoom}><Gift size={16} />{nextGiftText(progress, t)}<ArrowRight size={14} /></button>}
+        {completedScenario ? <button className="result-keepsakes has-new-keepsakes" onClick={onDreamReveal}><Sparkles size={16} />{t('result.dreamComplete', { name: t(`scenario.${completedScenario}.name`) })}<ArrowRight size={14} /></button>
+          : decorationCount > 0 ? <button className="result-keepsakes has-new-keepsakes" onClick={onRoom}><Gift size={16} />{t('room.new', { count: decorationCount })}<ArrowRight size={14} /></button> : unlockedCount > 0 ? <button className="result-keepsakes has-new-keepsakes" onClick={onJournal}><Award size={16} />{t('result.unlocked', { count: unlockedCount })}<ArrowRight size={14} /></button> : <button className="result-keepsakes next-gift-link" onClick={onRoom}><Gift size={16} />{nextGiftText(progress, t)}<ArrowRight size={14} /></button>}
       </div>
     </motion.div>}
   </AnimatePresence>;

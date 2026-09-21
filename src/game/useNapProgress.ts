@@ -30,7 +30,7 @@ export function useNapProgress() {
   const recordRound = useCallback((game: GameSnapshot) => {
     const result = applyRound(progressRef.current, game);
     if (result.progress !== progressRef.current) commit(result.progress);
-    return { achievements: result.unlocked, decorations: result.decorations };
+    return { achievements: result.unlocked, decorations: result.decorations, completedScenario: result.completedScenario };
   }, [commit]);
 
   const selectScenario = useCallback((scenario: Scenario) => {

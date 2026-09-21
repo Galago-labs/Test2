@@ -1,4 +1,4 @@
-export type ModalKind = 'guide' | 'story' | 'intro' | 'journal' | 'settings' | 'room' | 'exitConfirm' | null;
+export type ModalKind = 'guide' | 'story' | 'intro' | 'journal' | 'settings' | 'room' | 'exitConfirm' | 'dreamReveal' | null;
 export interface DialogState { modal: ModalKind; closing: boolean; startAfterClose: boolean; tutorialStartsNap: boolean; revision: number }
 export type DialogAction =
   | { type: 'open'; modal: Exclude<ModalKind, null>; startsNap?: boolean }

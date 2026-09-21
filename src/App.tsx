@@ -6,12 +6,14 @@ import { LittleDialog, type ModalKind } from './components/GameUI';
 import { AmbientDetails, DreamLayer, GameHud, GameMenu, GameOverlays } from './components/GameScene';
 import { useNapGame, type GameSnapshot, type Mood } from './game/useNapGame';
 import { LOW_COMFORT_THRESHOLD, faceExpression } from './game/engine';
+import type { Scenario } from './game/scenarios';
 import { useCozyAudio } from './game/useCozyAudio';
 import { useNapProgress, type AchievementId } from './game/useNapProgress';
 import { useGameAssets } from './game/useGameAssets';
 import { useStageLayout } from './game/useStageLayout';
 import { useGameInput } from './game/useGameInput';
 import { useTvNavigation } from './game/useTvNavigation';
+import { isCapacitorNative, useCapacitorBackButton } from './platform/capacitorBridge';
 import { initialDialogState, reduceDialog } from './game/dialogState';
 import { usePlatform } from './platform/usePlatform';
 import { wantsGameplay } from './platform/policy';
@@ -31,11 +33,13 @@ export default function App() {
   const audio = useCozyAudio(platform.suspended || platform.connection === null, progress.selectedScenario);
   const [roundUnlocks, setRoundUnlocks] = useState<AchievementId[]>([]);
   const [decorationCount, setDecorationCount] = useState(0);
+  const [completedScenario, setCompletedScenario] = useState<Scenario | null>(null);
   const recordFinished = useCallback((result: GameSnapshot) => {
     platform.setGameplay(false);
     const earned = recordRound(result);
     setRoundUnlocks(earned.achievements);
     setDecorationCount(earned.decorations.length);
+    setCompletedScenario(earned.completedScenario);
     // Yandex requirement: interstitials belong at natural pauses (after a round
     // ends), and sound must be muted while one is on screen and restored after.
     platform.showInterstitial(() => audio.muteImmediately(), () => audio.resumeFromInterrupt());
@@ -76,7 +80,7 @@ export default function App() {
     if (movable) return;
     queuedStart.current = false;
     roundBest.current = progress.scenarioScores[progress.selectedScenario][mood];
-    setRoundUnlocks([]); setDecorationCount(0); setAnnouncement(''); lowComfort.current = false;
+    setRoundUnlocks([]); setDecorationCount(0); setCompletedScenario(null); setAnnouncement(''); lowComfort.current = false;
     start(mood, progress.selectedScenario); focusGame();
   }, [uiReady, platform.isSuspended, movable, progress.scenarioScores, progress.selectedScenario, mood, start, focusGame]);
 
@@ -141,24 +145,28 @@ export default function App() {
     if (geometry) setCatchWidth(geometry.catchWidth, geometry.pillowEdge);
   }, [geometry, setCatchWidth]);
 
+  const isNativeApp = isCapacitorNative();
   const lastBackPress = useRef(0);
+  const handleBack = useCallback(() => {
+    if (platform.isSuspended()) return;
+    if (!isTV && !isNativeApp) { if (modal) closeModal(); else if (movable) pauseOrResume(); return; }
+    // TV remote's Back button, and Android's hardware/gesture back button, share
+    // the same convention: a double press (within 500ms) always offers to exit;
+    // otherwise it closes whatever's open, or — with nothing open, on the start
+    // menu specifically — also offers to exit (there's nothing to "go back" to
+    // from there). https://yandex.com/dev/games/doc/en/requirements/1/6/3
+    const now = performance.now();
+    const isDoublePress = now - lastBackPress.current < 500;
+    lastBackPress.current = now;
+    if (isDoublePress && modal !== 'exitConfirm') { openModal('exitConfirm'); return; }
+    if (modal) { closeModal(); return; }
+    if (game.status === 'ready') { openModal('exitConfirm'); return; }
+    if (movable) pauseOrResume();
+  }, [platform.isSuspended, isTV, isNativeApp, modal, closeModal, movable, game.status, openModal, pauseOrResume]);
+  useCapacitorBackButton(isNativeApp, handleBack);
   const input = useGameInput({
     surface: surfaceRef, blocked: controlsBlocked, movable, inNap, onPause: pauseOrResume,
-    onEscape: () => {
-      if (platform.isSuspended()) return;
-      if (!isTV) { if (modal) closeModal(); else if (movable) pauseOrResume(); return; }
-      // TV remote's Back button: a double press (within 500ms) always offers to
-      // exit; otherwise it closes whatever's open, or — with nothing open, on
-      // the start menu specifically — also offers to exit (there's nothing to
-      // "go back" to from there). https://yandex.com/dev/games/doc/en/requirements/1/6/3
-      const now = performance.now();
-      const isDoublePress = now - lastBackPress.current < 500;
-      lastBackPress.current = now;
-      if (isDoublePress && modal !== 'exitConfirm') { openModal('exitConfirm'); return; }
-      if (modal) { closeModal(); return; }
-      if (game.status === 'ready') { openModal('exitConfirm'); return; }
-      if (movable) pauseOrResume();
-    },
+    onEscape: handleBack,
     move, setDirection, release: releaseInput,
   });
 
@@ -173,6 +181,7 @@ export default function App() {
             <img className="room-image" src={assets.roomUrl} alt={t('game.image')} draggable={false} />
             <img className="room-image expression-overlay" style={{ opacity: expression === 'content' ? 1 : 0 }} src={assets.momoContentUrl} alt="" aria-hidden="true" draggable={false} />
             <img className="room-image expression-overlay" style={{ opacity: expression === 'anxious' ? 1 : 0 }} src={assets.momoAnxiousUrl} alt="" aria-hidden="true" draggable={false} />
+            <img className="room-image expression-overlay" style={{ opacity: expression === 'awake' ? 1 : 0 }} src={assets.momoAwakeUrl} alt="" aria-hidden="true" draggable={false} />
             <div className="scene-scrim" /><AmbientDetails restless={isLow || game.status === 'lost'} />
             {uiReady && <>
               <AnimatePresence>{game.status === 'ready' && <GameMenu key="menu" t={t} scenario={scenario} onScenario={(next) => { if (!controlsBlocked && game.status === 'ready') selectScenario(next); }} onStart={requestNap} onJournal={() => openModal('journal')} onRoom={() => openModal('room')} onStory={() => openModal('story')} />}</AnimatePresence>
@@ -181,7 +190,7 @@ export default function App() {
                 <button className="round-button" onClick={() => openModal('settings')} aria-label={t('settings.open')} title={t('settings.open')}><Settings2 size={21} strokeWidth={1.7} /></button>
               </div>}
               {inNap && <><GameHud game={game} t={t} onPause={pauseOrResume} /><DreamLayer game={game} t={t} /></>}
-              <GameOverlays game={game} t={t} onStart={requestNap} onResume={resumeNap} onReset={() => { queuedStart.current = false; platform.setGameplay(false); reset(); focusGame(); }} onJournal={() => openModal('journal')} onSettings={() => openModal('settings')} newBest={finished && game.score > roundBest.current} unlockedCount={roundUnlocks.length} onRoom={() => openModal('room')} decorationCount={decorationCount} progress={progress} />
+              <GameOverlays game={game} t={t} onStart={requestNap} onResume={resumeNap} onReset={() => { queuedStart.current = false; platform.setGameplay(false); reset(); focusGame(); }} onJournal={() => openModal('journal')} onSettings={() => openModal('settings')} newBest={finished && game.score > roundBest.current} unlockedCount={roundUnlocks.length} onRoom={() => openModal('room')} decorationCount={decorationCount} completedScenario={completedScenario} onDreamReveal={() => openModal('dreamReveal')} progress={progress} />
               <span className="sr-only" aria-live="polite" aria-atomic="true">{announcement}</span>
             </>}
           </div>
@@ -197,7 +206,7 @@ export default function App() {
             musicEnabled={audio.musicEnabled} ambienceEnabled={audio.ambienceEnabled} toggleMusic={audio.toggleMusic} toggleAmbience={audio.toggleAmbience}
             fullscreen={platform.fullscreen} changeFullscreen={platform.changeFullscreen} platformUnavailable={platform.connection?.initializationFailed || false} onReconnect={platform.reconnect}
             mood={mood} onMood={setMood} inNap={inNap} onEquip={equipDecoration}
-            standaloneMode={platform.connection?.mode === 'standalone'}
+                        completedScenario={completedScenario}
             onConfirmExit={() => { try { window.close(); } catch { /* Most contexts ignore this; the TV shell owns the actual exit. */ } }}
           />}
         </AnimatePresence>

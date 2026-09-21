@@ -5,6 +5,9 @@ export const SCENARIOS: Record<Scenario, { intervalScale: number; speedScale: nu
   breeze: { intervalScale: 1.06, speedScale: 0.96, decayScale: 0.94 },
   fireflies: { intervalScale: 1.28, speedScale: 0.88, decayScale: 0.8 },
 };
+// Wins needed in one dream (scenario) before it counts as "explored". Purely
+// a sense-of-progress milestone — nothing about gameplay changes at 5 wins.
+export const SCENARIO_DREAM_GOAL = 5;
 
 export function isScenario(value: unknown): value is Scenario { return typeof value === 'string' && (SCENARIO_IDS as readonly string[]).includes(value); }
 export interface WindState { phase: 'calm' | 'warning' | 'gust'; direction: -1 | 1; offset: number }

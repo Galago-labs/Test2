@@ -1,6 +1,7 @@
 import { withDeadline } from '../core/async.ts';
 import { warnOnce } from '../core/faults.ts';
 import { isYandexSDK } from './bridge.ts';
+import { isCapacitorNative } from './capacitorBridge';
 import type { PlatformConnection, YandexSDK } from './types';
 
 let connectionPromise: Promise<PlatformConnection> | undefined;
@@ -49,7 +50,10 @@ export function connectPlatform(retry = false): Promise<PlatformConnection> {
       const override = new URLSearchParams(location.search).get('platform');
       const development = Boolean((import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV);
       // Production initializes Yandex by default. Local artwork does not change SDK policy.
-      if (!retry && !window.YaGames && (override === 'standalone' || (development && override !== 'yandex'))) return standaloneConnection();
+      // Inside the native (Capacitor) wrapper there is no Yandex SDK to load at
+      // all — that's expected, not a failure, so it must not surface the "can't
+      // reach Yandex, try reconnecting" message meant for the web build.
+      if (!retry && (isCapacitorNative() || !window.YaGames) && (override === 'standalone' || isCapacitorNative() || (development && override !== 'yandex'))) return standaloneConnection();
       await loadSDK();
       const sdk = await initialize();
       return { mode: 'yandex', sdk, language: sdk.environment.i18n.lang, initializationFailed: false } as PlatformConnection;
