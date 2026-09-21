@@ -1,0 +1,18 @@
+{
+  "name": "little-pause-native",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Native app wrapper (Capacitor) for little pause. — packages the same web build for RuStore and Google Play. This is a separate project from the web game; it does not modify it.",
+  "scripts": {
+    "sync": "node ../scripts/prepare-native-release.mjs && cap sync android",
+    "open:android": "cap open android",
+    "build:android:debug": "cd android && ./gradlew assembleDebug",
+    "build:android:release-aab": "cd android && ./gradlew bundleRelease"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2"
+  }
+}
