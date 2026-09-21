@@ -22,7 +22,7 @@ export const en = {
   'scenario.locked': 'Finish this nap before changing the pace.',
   'scenario.afternoon.name': 'A quiet afternoon',
   'scenario.afternoon.description': 'Soft clouds, warm sunlight, a familiar little rhythm.',
-  'scenario.afternoon.memory': 'Momo dreamed of a warm patch of sunlight, just her size.',
+  'scenario.afternoon.memory': 'Momo dreamed of the forbidden apple tree behind the shrine — and the apples turned out to be delicious.',
   'scenario.breeze.name': 'A breeze at the window',
   'scenario.breeze.description': 'Watch the leaves. Gentle gusts carry the dreams sideways.',
   'scenario.breeze.memory': 'In her dream, every maple leaf knew the way home.',

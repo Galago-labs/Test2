@@ -24,7 +24,7 @@ export const es: Dictionary = {
   'scenario.locked': 'Termina esta siesta antes de cambiar el ritmo.',
   'scenario.afternoon.name': 'Una tarde tranquila',
   'scenario.afternoon.description': 'Nubes suaves, sol cálido y un ritmo familiar.',
-  'scenario.afternoon.memory': 'Momo soñó con un rayito de sol justo de su tamaño.',
+  'scenario.afternoon.memory': 'Momo soñó con el manzano prohibido detrás del santuario, y las manzanas resultaron deliciosas.',
   'scenario.breeze.name': 'Brisa en la ventana',
   'scenario.breeze.description': 'Mira las hojas. Las ráfagas llevan los sueños hacia los lados.',
   'scenario.breeze.memory': 'En su sueño, cada hoja de arce conocía el camino a casa.',

@@ -24,7 +24,7 @@ export const ru: Dictionary = {
   'scenario.locked': 'Завершите этот сон, чтобы изменить темп.',
   'scenario.afternoon.name': 'Тихий полдень',
   'scenario.afternoon.description': 'Мягкие облака, тёплое солнце и знакомый ритм.',
-  'scenario.afternoon.memory': 'Момо приснилось солнечное пятнышко, как раз по её размеру.',
+  'scenario.afternoon.memory': 'Момо приснилась запретная яблоня за храмом — а яблоки оказались очень вкусными.',
   'scenario.breeze.name': 'Ветер за окном',
   'scenario.breeze.description': 'Следите за листьями: порывы плавно уносят сны в сторону.',
   'scenario.breeze.memory': 'Во сне каждый кленовый лист знал дорогу домой.',

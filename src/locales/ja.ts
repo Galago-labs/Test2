@@ -24,7 +24,7 @@ export const ja: Dictionary = {
   'scenario.locked': 'ペースを変える前に、今のお昼寝を終えましょう。',
   'scenario.afternoon.name': '静かな午後',
   'scenario.afternoon.description': '柔らかな雲、暖かい日差し、いつもの心地よいリズム。',
-  'scenario.afternoon.memory': 'モモは自分にぴったりの、小さな日だまりを夢見ました。',
+  'scenario.afternoon.memory': 'モモは夢の中で、神社の裏にある禁じられた林檎の木を見つけ、その甘さに驚きました。',
   'scenario.breeze.name': '窓辺のそよ風',
   'scenario.breeze.description': '葉っぱに注目。そよ風が夢を横に運びます。',
   'scenario.breeze.memory': '夢の中では、どのもみじの葉も家への道を知っていました。',

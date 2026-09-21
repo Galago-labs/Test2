@@ -24,7 +24,7 @@ export const ko: Dictionary = {
   'scenario.locked': '속도를 바꾸려면 이번 낮잠을 먼저 끝내 주세요.',
   'scenario.afternoon.name': '고요한 오후',
   'scenario.afternoon.description': '부드러운 구름과 따뜻한 햇살, 익숙한 작은 리듬.',
-  'scenario.afternoon.memory': '모모는 자기 몸에 꼭 맞는 따뜻한 햇살을 꿈꿨어요.',
+  'scenario.afternoon.memory': '모모는 꿈속에서 신사 뒤편의 금지된 사과나무를 발견했고, 사과는 무척 달콤했어요.',
   'scenario.breeze.name': '창가의 산들바람',
   'scenario.breeze.description': '나뭇잎을 보세요. 산들바람이 꿈을 옆으로 옮겨요.',
   'scenario.breeze.memory': '꿈속의 단풍잎은 모두 집으로 가는 길을 알고 있었어요.',

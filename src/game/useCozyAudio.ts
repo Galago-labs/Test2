@@ -56,6 +56,7 @@ export function useCozyAudio(suspended = false, scenario: Scenario = 'afternoon'
   const cycleToken = useRef(0);
   const birdTurn = useRef(0);
   const activeSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const activePhaseRef = useRef<Phase | null>(null);
   suspendedRef.current = suspended;
   musicEnabledRef.current = musicEnabled;
   ambienceEnabledRef.current = ambienceEnabled;
@@ -69,6 +70,7 @@ export function useCozyAudio(suspended = false, scenario: Scenario = 'afternoon'
   const stopActiveSource = useCallback(() => {
     const source = activeSourceRef.current;
     activeSourceRef.current = null;
+    activePhaseRef.current = null;
     if (!source) return;
     try { source.onended = null; source.stop(); source.disconnect(); } catch { /* already stopped/disposed */ }
   }, []);
@@ -163,6 +165,7 @@ export function useCozyAudio(suspended = false, scenario: Scenario = 'afternoon'
         source.start(now, offset);
         source.stop(now + totalDuration + 0.05);
         activeSourceRef.current = source;
+        activePhaseRef.current = phase;
         // Deliberately NOT a wall-clock setTimeout: while the tab/app is in
         // the background the AudioContext is suspended (see syncVolume), and
         // its own clock (context.currentTime) correctly freezes right along
@@ -174,7 +177,7 @@ export function useCozyAudio(suspended = false, scenario: Scenario = 'afternoon'
         // clock, so it naturally pauses and resumes exactly in step with
         // suspend/resume — no separate bookkeeping needed to fix this.
         source.onended = () => {
-          if (activeSourceRef.current === source) activeSourceRef.current = null;
+          if (activeSourceRef.current === source) { activeSourceRef.current = null; activePhaseRef.current = null; }
           try { source.disconnect(); } catch { /* already disposed */ }
           resolve();
         };
@@ -240,19 +243,44 @@ export function useCozyAudio(suspended = false, scenario: Scenario = 'afternoon'
     }
   }, [getEngine, play, syncVolume, runCycle, stopActiveSource]);
 
+  // Fades out and stops the currently-playing source, but only if it's
+  // actually the layer being turned off — turning off ambience while music
+  // is playing (or vice versa) has nothing to interrupt, since the cycle
+  // already only plays one layer at a time. A quick 0.4s fade rather than
+  // an abrupt stop, since this fires on every deliberate toggle click.
+  const QUICK_FADE = 0.4;
+  const interruptPhaseIfActive = useCallback((phase: Phase) => {
+    if (activePhaseRef.current !== phase) return;
+    const engine = engineRef.current;
+    const source = activeSourceRef.current;
+    if (!engine || engine.context.state === 'closed' || !source) return;
+    try {
+      const gainNode = phase === 'music' ? engine.musicGain : engine.ambienceGain;
+      const now = engine.context.currentTime;
+      gainNode.gain.cancelScheduledValues(now);
+      gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+      gainNode.gain.linearRampToValueAtTime(0, now + QUICK_FADE);
+      source.stop(now + QUICK_FADE + 0.05);
+      activeSourceRef.current = null;
+      activePhaseRef.current = null;
+    } catch { /* already stopped/disposed; onended (if it still fires) is a no-op then */ }
+  }, []);
+
   const toggleMusic = useCallback(() => {
     const next = !musicEnabledRef.current;
     musicEnabledRef.current = next;
     setMusicEnabled(next);
     writeFlag(MUSIC_KEY, next);
-  }, []);
+    if (!next) interruptPhaseIfActive('music');
+  }, [interruptPhaseIfActive]);
 
   const toggleAmbience = useCallback(() => {
     const next = !ambienceEnabledRef.current;
     ambienceEnabledRef.current = next;
     setAmbienceEnabled(next);
     writeFlag(AMBIENCE_KEY, next);
-  }, []);
+    if (!next) interruptPhaseIfActive('ambience');
+  }, [interruptPhaseIfActive]);
 
   const resumeFromInterrupt = useCallback(() => {
     interruptedRef.current = suspendedRef.current || document.hidden || !document.hasFocus();
