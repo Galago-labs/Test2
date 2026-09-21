@@ -54,6 +54,19 @@ jobs:
 
       - name: Set up the Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # Explicit on purpose: this action's own default ("tools
+          # platform-tools") requests the legacy 'tools' SDK package, which
+          # Google stopped serving on 2026-09-15 — sdkmanager now hard-fails
+          # asking for it, breaking this step before any build code runs.
+          # We only need adb-adjacent platform-tools here (no emulator, no
+          # instrumented tests); Gradle/AGP resolves whatever build-tools
+          # and platform version compileSdk actually needs on its own once
+          # the SDK licenses are accepted, which this action still does
+          # regardless of this input. Do not remove this override — it's
+          # what keeps this step from breaking again the next time the
+          # action's own default package list changes.
+          packages: 'platform-tools'
 
       - name: Install native project dependencies
         working-directory: native
