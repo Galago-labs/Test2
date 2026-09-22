@@ -76,6 +76,18 @@ jobs:
         working-directory: native
         run: npm run sync
 
+      - name: Make sure gradlew is executable
+        # Not redundant with anything upstream: git only tracks the
+        # executable bit if it was set at commit time, and it's easy to
+        # lose — e.g. extracting/committing this project from a zip on
+        # Windows, or various editors/zip tools that don't preserve Unix
+        # file modes. Rather than rely on the checked-in bit surviving
+        # every such round trip, just set it fresh here every run. This
+        # is the actual fix for "./gradlew: Permission denied" (exit 126);
+        # it is not something Gradle or the Android SDK setup step affects.
+        working-directory: native/android
+        run: chmod +x gradlew
+
       - name: Build debug APK (always — good for installing on a device/emulator to sanity-check)
         working-directory: native/android
         run: ./gradlew assembleDebug
