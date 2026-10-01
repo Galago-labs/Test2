@@ -1,3 +1,7 @@
+Copyright (c) 2026 Oriby Games. All rights reserved.
+The game's own code and content are proprietary to Oriby Games. The components
+listed below are third-party software, used under their own licenses.
+
 fflate
 MIT License
 
