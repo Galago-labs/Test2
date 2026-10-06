@@ -39,11 +39,14 @@ jobs:
       - name: Install web game dependencies
         run: npm ci
 
+      - name: Type-check the web game
+        run: npm run typecheck
+
       - name: Build the web game (produces dist/)
         run: npm run build
 
       - name: Run the web game's own test suite
-        run: node --test --experimental-strip-types tests/*.ts
+        run: npm test
 
       # --- Step 2: the native Android wrapper ---
       - name: Set up JDK 21
@@ -92,11 +95,24 @@ jobs:
         working-directory: native/android
         run: ./gradlew assembleDebug
 
+      # Gradle always names its output <module>-<buildType>.apk, and the module is
+      # called "app" — hence app-debug.apk. That is only a file name (the app's
+      # real name on the phone comes from strings.xml), but we hand people a
+      # properly named, versioned copy instead.
+      - name: Give the build files proper names
+        id: names
+        run: |
+          VERSION=$(sed -n 's/.*versionName "\(.*\)".*/\1/p' native/android/app/build.gradle)
+          CODE=$(sed -n 's/.*versionCode \([0-9][0-9]*\).*/\1/p' native/android/app/build.gradle)
+          echo "label=MomoDreams-v${VERSION}-code${CODE}" >> "$GITHUB_OUTPUT"
+          mkdir -p out/debug
+          cp native/android/app/build/outputs/apk/debug/app-debug.apk "out/debug/MomoDreams-v${VERSION}-code${CODE}-debug.apk"
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: little-pause-debug-apk
-          path: native/android/app/build/outputs/apk/debug/*.apk
+          name: momodreams-debug-apk
+          path: out/debug/*.apk
 
       # --- Step 3 (optional, manual only): a real signed release build ---
       # Only runs if you tick the box when manually running this workflow AND
@@ -130,14 +146,21 @@ jobs:
             -Pandroid.injected.signing.key.alias="$RELEASE_KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$RELEASE_KEY_PASSWORD"
 
+      - name: Give the release files proper names
+        if: ${{ github.event.inputs.build_signed_release == 'true' }}
+        run: |
+          mkdir -p out/release
+          cp native/android/app/build/outputs/bundle/release/*.aab "out/release/${{ steps.names.outputs.label }}-release.aab"
+          cp native/android/app/build/outputs/apk/release/*.apk "out/release/${{ steps.names.outputs.label }}-release.apk"
+
       - name: Upload signed release build (AAB for Google Play, APK for RuStore)
         if: ${{ github.event.inputs.build_signed_release == 'true' }}
         uses: actions/upload-artifact@v4
         with:
-          name: little-pause-release-signed
+          name: momodreams-release-signed
           path: |
-            native/android/app/build/outputs/bundle/release/*.aab
-            native/android/app/build/outputs/apk/release/*.apk
+            out/release/*.aab
+            out/release/*.apk
 
       - name: Remove the decoded keystore (never leave it in the runner's workspace)
         if: always()
