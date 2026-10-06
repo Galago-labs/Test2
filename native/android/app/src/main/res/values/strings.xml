@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">Сладкие сны Момо</string>
-    <string name="title_activity_main">Сладкие сны Момо</string>
-    <string name="package_name">com.oribygames.momodreams</string>
-    <string name="custom_url_scheme">com.oribygames.momodreams</string>
-</resources>
