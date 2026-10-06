@@ -120,12 +120,36 @@ jobs:
       # Secrets and variables -> Actions. See native/README.md for exactly
       # what to generate and upload. Skipped entirely otherwise — the debug
       # APK above still gets built either way.
-      - name: Decode the release keystore
+      # Fails early, with a plain message, if a secret is missing or the keystore cannot
+      # be opened — instead of an obscure Gradle error later. Nothing secret is printed.
+      - name: Check the signing secrets and decode the release keystore
         if: ${{ github.event.inputs.build_signed_release == 'true' }}
         working-directory: native/android
         env:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
-        run: echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > app/release.keystore
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          missing=""
+          for name in RELEASE_KEYSTORE_BASE64 RELEASE_STORE_PASSWORD RELEASE_KEY_ALIAS RELEASE_KEY_PASSWORD; do
+            [ -n "${!name}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::These GitHub secrets are missing or empty:$missing. Add them in Settings > Secrets and variables > Actions (see native/README.md)."
+            exit 1
+          fi
+          # Gradle needs an ABSOLUTE path here: a bare file name is looked up in Gradle's own
+          # daemon folder, not in the project, and the build fails with "Keystore file not found".
+          KEYSTORE_PATH="$PWD/app/release.keystore"
+          # Text copied from Windows often carries line breaks or spaces; they are not part of the data.
+          printf '%s' "$RELEASE_KEYSTORE_BASE64" | tr -d ' \r\n' | base64 -d > "$KEYSTORE_PATH" || {
+            echo "::error::RELEASE_KEYSTORE_BASE64 is not valid base64. Re-create it from the .keystore file (see native/README.md)."; exit 1; }
+          if ! keytool -list -keystore "$KEYSTORE_PATH" -storepass "$RELEASE_STORE_PASSWORD" -alias "$RELEASE_KEY_ALIAS" > /dev/null 2>&1; then
+            echo "::error::The keystore could not be opened with RELEASE_STORE_PASSWORD and RELEASE_KEY_ALIAS. Check that the password and the alias are exactly the ones used when the keystore was created."; exit 1
+          fi
+          echo "Keystore decoded and opened successfully."
+          echo "KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
 
       - name: Build signed release AAB (for Google Play) and APK (for RuStore)
         if: ${{ github.event.inputs.build_signed_release == 'true' }}
@@ -136,12 +160,12 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
           ./gradlew bundleRelease \
-            -Pandroid.injected.signing.store.file=release.keystore \
+            -Pandroid.injected.signing.store.file="$KEYSTORE_PATH" \
             -Pandroid.injected.signing.store.password="$RELEASE_STORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$RELEASE_KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$RELEASE_KEY_PASSWORD"
           ./gradlew assembleRelease \
-            -Pandroid.injected.signing.store.file=release.keystore \
+            -Pandroid.injected.signing.store.file="$KEYSTORE_PATH" \
             -Pandroid.injected.signing.store.password="$RELEASE_STORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$RELEASE_KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$RELEASE_KEY_PASSWORD"
