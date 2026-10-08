@@ -132,21 +132,24 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
           missing=""
-          for name in RELEASE_KEYSTORE_BASE64 RELEASE_STORE_PASSWORD RELEASE_KEY_ALIAS RELEASE_KEY_PASSWORD; do
+          for name in RELEASE_KEYSTORE_BASE64 RELEASE_STORE_PASSWORD; do
             [ -n "${!name}" ] || missing="$missing $name"
           done
           if [ -n "$missing" ]; then
-            echo "::error::These GitHub secrets are missing or empty:$missing. Add them in Settings > Secrets and variables > Actions (see native/README.md)."
+            echo "::error::These GitHub secrets are missing or empty:$missing. If you have no signing key yet, run the workflow \"Create signing key (run once)\" first; the steps are in native/README.md (\"Signing\")."
             exit 1
           fi
+          # The key created by that workflow uses this alias and one password; secrets for
+          # RELEASE_KEY_ALIAS / RELEASE_KEY_PASSWORD are only needed for a key made some other way.
+          ALIAS="${RELEASE_KEY_ALIAS:-momodreams}"
           # Gradle needs an ABSOLUTE path here: a bare file name is looked up in Gradle's own
           # daemon folder, not in the project, and the build fails with "Keystore file not found".
           KEYSTORE_PATH="$PWD/app/release.keystore"
           # Text copied from Windows often carries line breaks or spaces; they are not part of the data.
           printf '%s' "$RELEASE_KEYSTORE_BASE64" | tr -d ' \r\n' | base64 -d > "$KEYSTORE_PATH" || {
             echo "::error::RELEASE_KEYSTORE_BASE64 is not valid base64. Re-create it from the .keystore file (see native/README.md)."; exit 1; }
-          if ! keytool -list -keystore "$KEYSTORE_PATH" -storepass "$RELEASE_STORE_PASSWORD" -alias "$RELEASE_KEY_ALIAS" > /dev/null 2>&1; then
-            echo "::error::The keystore could not be opened with RELEASE_STORE_PASSWORD and RELEASE_KEY_ALIAS. Check that the password and the alias are exactly the ones used when the keystore was created."; exit 1
+          if ! keytool -list -keystore "$KEYSTORE_PATH" -storepass "$RELEASE_STORE_PASSWORD" -alias "$ALIAS" > /dev/null 2>&1; then
+            echo "::error::The keystore could not be opened with RELEASE_STORE_PASSWORD (and the alias). Check that the password is exactly the one used when the key was created."; exit 1
           fi
           echo "Keystore decoded and opened successfully."
           echo "KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
@@ -159,16 +162,18 @@ jobs:
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
+          ALIAS="${RELEASE_KEY_ALIAS:-momodreams}"
+          KEY_PASSWORD="${RELEASE_KEY_PASSWORD:-$RELEASE_STORE_PASSWORD}"
           ./gradlew bundleRelease \
             -Pandroid.injected.signing.store.file="$KEYSTORE_PATH" \
             -Pandroid.injected.signing.store.password="$RELEASE_STORE_PASSWORD" \
-            -Pandroid.injected.signing.key.alias="$RELEASE_KEY_ALIAS" \
-            -Pandroid.injected.signing.key.password="$RELEASE_KEY_PASSWORD"
+            -Pandroid.injected.signing.key.alias="$ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
           ./gradlew assembleRelease \
             -Pandroid.injected.signing.store.file="$KEYSTORE_PATH" \
             -Pandroid.injected.signing.store.password="$RELEASE_STORE_PASSWORD" \
-            -Pandroid.injected.signing.key.alias="$RELEASE_KEY_ALIAS" \
-            -Pandroid.injected.signing.key.password="$RELEASE_KEY_PASSWORD"
+            -Pandroid.injected.signing.key.alias="$ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
 
       - name: Give the release files proper names
         if: ${{ github.event.inputs.build_signed_release == 'true' }}
